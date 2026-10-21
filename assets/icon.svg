@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="64" height="64" fill="none">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#339CFF" />
+      <stop offset="100%" stop-color="#0066FF" />
+    </linearGradient>
+  </defs>
+  <!-- 背景圆角矩形 -->
+  <rect width="24" height="24" rx="5" fill="url(#bgGrad)" />
+  <!-- 铃铛/通知主体 -->
+  <path d="M12 4C8.686 4 6 6.686 6 10V14L4.5 16V17H19.5V16L18 14V10C18 6.686 15.314 4 12 4Z" fill="#FFFFFF" fill-opacity="0.95" />
+  <!-- 铃铛底部小挂锤 -->
+  <path d="M10 18C10 19.104 10.896 20 12 20C13.104 20 14 19.104 14 18H10Z" fill="#FFFFFF" fill-opacity="0.95" />
+  <!-- 动态波纹/广播信号 -->
+  <path d="M17 6.5C18.2 7.7 19 9.3 19 11" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.8" />
+  <path d="M19.5 4C21.2 5.7 22.2 8 22.2 10.5" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" stroke-opacity="0.6" />
+</svg>

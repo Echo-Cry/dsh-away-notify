@@ -1,0 +1,66 @@
+{
+  "name": "dsh-away-notify",
+  "version": "0.8.4",
+  "type": "module",
+  "description": "自主搜索指定的网络资讯推送，推送到会话或 IM",
+  "author": "Echo-Cry <kcrystal360049@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Echo-Cry/dsh-away-notify.git"
+  },
+  "homepage": "https://github.com/Echo-Cry/dsh-away-notify#readme",
+  "bugs": {
+    "url": "https://github.com/Echo-Cry/dsh-away-notify/issues"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "away-notify",
+    "notification",
+    "news",
+    "rss",
+    "idle",
+    "资讯推送",
+    "离席推送",
+    "热榜"
+  ],
+  "icon": "./assets/icon.svg",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./assets/icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "lib",
+    "assets",
+    "locale",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "os": [
+    "win32"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  },
+  "peerDependencies": {
+    "dsh": ">=0.2.0-rc.1 <0.3.0-0"
+  }
+}

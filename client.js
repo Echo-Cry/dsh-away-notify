@@ -6,7 +6,7 @@
 //   - 数据走宿主 /api/away-notify 精确 Fetch 路由：
 //     ctx.get('connection').rpc.call('/api', 'away-notify', { endpoint, ...payload })。
 window.__ModuleLoader__.load({
-	id: 'dsh-away-notify',
+	id: 'dsh-intel-pulse',
 	factory: (require) => {
 		var module = { exports: {} }
 		var exports = module.exports
@@ -1090,11 +1090,11 @@ window.__ModuleLoader__.load({
 			try {
 				ctx.slots.inject('settings.section', function* () {
 					yield ctx.slots.register(
-						{ name: 'settings.section', id: 'dsh-away-notify', order: 25, label: () => '自主资讯推送' },
+						{ name: 'settings.section', id: 'dsh-intel-pulse', order: 25, label: () => '自主资讯推送' },
 						AwayNotifySection)
 				})
 			} catch (e) {
-				console.warn('[dsh-away-notify] settings.section slot unavailable', e)
+				console.warn('[dsh-intel-pulse] settings.section slot unavailable', e)
 			}
 		}
 

@@ -13,12 +13,12 @@ import { executeChildCollect, cleanOldChildSessions } from './lib/child.js'
 import { tryEnterRun, exitRun, isRunBusy } from './lib/run-guard.js'
 import { createSessionEventListener } from './lib/listener.js'
 
-export const name = 'dsh-away-notify'
+export const name = 'dsh-intel-pulse'
 export const inject = ['sessions', 'agents']
 
 export function apply(ctx) {
   const logger = defaultLogger
-  logger.info('Initializing dsh-away-notify plugin...')
+  logger.info('Initializing dsh-intel-pulse plugin...')
 
   const lockRes = acquireLock()
   if (!lockRes.acquired) {
@@ -343,7 +343,7 @@ export function apply(ctx) {
   // 卸载与清理
   ctx.effect(() => {
     return () => {
-      logger.info('Disposing dsh-away-notify plugin...')
+      logger.info('Disposing dsh-intel-pulse plugin...')
       if (sessionListener) sessionListener.stop()
       if (pollTick) clearInterval(pollTick)
       if (cleanupInterval) clearInterval(cleanupInterval)

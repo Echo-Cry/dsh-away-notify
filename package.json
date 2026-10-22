@@ -1,8 +1,8 @@
 {
-  "name": "dsh-away-notify",
+  "name": "dsh-intel-pulse",
   "version": "0.8.7",
   "type": "module",
-  "description": "自主搜索指定的网络资讯推送，推送到会话或 IM",
+  "description": "自主搜索指定的网络资讯推送，推送到会话或 IM；全局会话状态系统弹窗通知",
   "author": "Echo-Cry <kcrystal360049@gmail.com>",
   "license": "MIT",
   "repository": {
@@ -17,13 +17,13 @@
     "dsh",
     "dsh-plugin",
     "deepseek-harness",
-    "away-notify",
+    "intel-pulse",
     "notification",
     "news",
     "rss",
     "idle",
     "资讯推送",
-    "离席推送",
+    "会话弹窗",
     "热榜"
   ],
   "icon": "./assets/icon.svg",

@@ -2,5 +2,5 @@
 # 那一行会让 profile 必须自己能解析该包，且可能造成装载机制双实例，
 # 之后任何会话 resume 都会失败（prompt section "deployment:persona-prefix" is already registered）。
 - insert:
-    - id: away-notify
-      name: 'dsh-away-notify'
+    - id: intel-pulse
+      name: 'dsh-intel-pulse'

@@ -436,11 +436,11 @@ window.__ModuleLoader__.load({
 					String(c.label || '对话') + (c.sessionTitle ? ' · ' + c.sessionTitle : ''))))
 
 			let note = mode === 'follow'
-				? '每条推送发到它对应会话的那个 IM 聊天：群里的会话发到群，私聊发到私聊'
+				? '每条推送发到它对应会话的那个 IM / QQ 聊天：群里的会话发到群，私聊发到私聊'
 				: '同一段文案再发一份到这个对话；不选就只进会话'
-			if (list.loading) note = '正在读取 IM 对话…'
-			else if (!available) note = '宿主里没有可用的 IM 投递服务（没装或没连上），跳过这一项'
-			else if (chats.length === 0) note = '没读到 dsh-im 桥接过的聊天，先在 IM 插件里把机器人连上'
+			if (list.loading) note = '正在读取 IM / QQ 对话…'
+			else if (!available) note = '宿主里没有可用的 IM 或 QQ 投递服务（没装或没连上），跳过这一项'
+			else if (chats.length === 0) note = '没读到已桥接的聊天，先在 IM 插件或 dsh-onebot-qq 里把机器人连上'
 
 			// 跟随模式下顺便告诉用户：选中的会话里有几个能对上 IM 聊天
 			const chosen = Array.isArray(cfg.sessionIds) ? cfg.sessionIds.filter(Boolean) : []
@@ -856,7 +856,74 @@ window.__ModuleLoader__.load({
 				}))
 		}
 
-		// ── ⑤ 账单 ─────────────────────────────────────────────────────
+		// ── ⑤ 会话状态系统弹窗通知 ───────────────────────────────────────────────
+		function DesktopNotifyBox(props) {
+			const { cfg, patch } = props
+			const dCfg = cfg.desktopNotify || {
+				enabled: false,
+				onComplete: true,
+				onActionRequired: true,
+				onError: true,
+				sound: true
+			}
+			const [testState, setTestState] = React.useState({ testing: false, msg: '' })
+
+			const set = (next) => patch({ desktopNotify: { ...dCfg, ...next } })
+
+			const doTest = async () => {
+				setTestState({ testing: true, msg: '正在发送测试弹窗…' })
+				try {
+					const res = await rpc('notify.test')
+					if (res && res.sent) {
+						setTestState({ testing: false, msg: '✅ 已发出系统通知，请查看屏幕右下角' })
+					} else {
+						setTestState({ testing: false, msg: '⚠️ 通知调用未成功' })
+					}
+				} catch (e) {
+					setTestState({ testing: false, msg: '❌ 发送失败：' + (e.message || '未知原因') })
+				}
+				setTimeout(() => setTestState((s) => ({ ...s, msg: '' })), 4000)
+			}
+
+			return h('div', null,
+				h(Row, {
+					label: '弹窗总开关',
+					control: toggleBtn(dCfg.enabled, () => set({ enabled: !dCfg.enabled }), '☑ 开启', '☐ 关闭'),
+					note: 'AI 回复完成或需要用户操作时，弹出 Windows 桌面系统通知'
+				}),
+				h(Divider, null),
+				h(Row, {
+					label: '回复完成通知',
+					control: toggleBtn(dCfg.onComplete !== false, () => set({ onComplete: !(dCfg.onComplete !== false) }), '☑ 开启', '☐ 关闭'),
+					note: '一轮思考与回复结束时提醒'
+				}),
+				h(Row, {
+					label: '等待操作通知',
+					control: toggleBtn(dCfg.onActionRequired !== false, () => set({ onActionRequired: !(dCfg.onActionRequired !== false) }), '☑ 开启', '☐ 关闭'),
+					note: 'AI 提出确认问题（提问卡片）或需要授权审批时即时提醒'
+				}),
+				h(Row, {
+					label: '运行出错通知',
+					control: toggleBtn(dCfg.onError !== false, () => set({ onError: !(dCfg.onError !== false) }), '☑ 开启', '☐ 关闭'),
+					note: '模型调用失败或会话发生异常时提醒'
+				}),
+				h(Row, {
+					label: '提示音',
+					control: toggleBtn(dCfg.sound !== false, () => set({ sound: !(dCfg.sound !== false) }), '☑ 提示音', '☐ 静音'),
+					note: '弹窗出现时是否播放系统通知提示音'
+				}),
+				h(Divider, null),
+				h('div', { style: wrapRow },
+					h('button', {
+						style: { ...buttonGhost, cursor: testState.testing ? 'not-allowed' : 'pointer' },
+						onClick: doTest,
+						disabled: testState.testing
+					}, '发送测试弹窗'),
+					testState.msg ? h('span', { style: hintStyle }, testState.msg) : null),
+				h('div', { style: hintStyle }, '采用 Windows 系统原生 Toast 通知，切到其他窗口或后台工作时亦可提醒。'))
+		}
+
+		// ── ⑥ 账单 ─────────────────────────────────────────────────────
 		function BillBox() {
 			const [tab, setTab] = React.useState('today')
 			const [reload, setReload] = React.useState(0)
@@ -998,6 +1065,7 @@ window.__ModuleLoader__.load({
 				h(Section, { title: '采集' }, h(SourceBox, { cfg, patch }), h(SaveNote, { save })),
 				h(Section, { title: '推送风格' }, h(StyleBox, { cfg, patch }), h(SaveNote, { save })),
 				h(Section, { title: '频率与运行' }, h(TimingBox, { cfg, patch }), h(SaveNote, { save })),
+				h(Section, { title: '会话状态系统弹窗通知' }, h(DesktopNotifyBox, { cfg, patch }), h(SaveNote, { save })),
 				h(Section, { title: '账单' }, h(BillBox, null)))
 		}
 

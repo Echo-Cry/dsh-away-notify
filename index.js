@@ -11,8 +11,10 @@ import { recordRun } from './lib/billing.js'
 import { resolveEgo, stopEgoBrowser } from './lib/ego.js'
 import { executeChildCollect, cleanOldChildSessions } from './lib/child.js'
 import { tryEnterRun, exitRun, isRunBusy } from './lib/run-guard.js'
+import { createSessionEventListener } from './lib/listener.js'
 
 export const name = 'dsh-away-notify'
+export const inject = ['sessions', 'agents']
 
 export function apply(ctx) {
   const logger = defaultLogger
@@ -335,10 +337,14 @@ export function apply(ctx) {
     }, 10 * 60 * 1000)
   }
 
+  // 监听宿主全局会话事件（实现会话状态系统弹窗通知）
+  const sessionListener = createSessionEventListener(ctx, logger)
+
   // 卸载与清理
   ctx.effect(() => {
     return () => {
       logger.info('Disposing dsh-away-notify plugin...')
+      if (sessionListener) sessionListener.stop()
       if (pollTick) clearInterval(pollTick)
       if (cleanupInterval) clearInterval(cleanupInterval)
       probe.stop()

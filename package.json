@@ -1,6 +1,6 @@
 {
   "name": "dsh-away-notify",
-  "version": "0.8.4",
+  "version": "0.8.7",
   "type": "module",
   "description": "自主搜索指定的网络资讯推送，推送到会话或 IM",
   "author": "Echo-Cry <kcrystal360049@gmail.com>",

@@ -449,10 +449,213 @@ window.__ModuleLoader__.load({
 				? h('div', { style: hintStyle }, '选中的 ' + chosen.length + ' 个会话里，' + matched.length + ' 个能对上 IM 聊天' + (matched.length < chosen.length ? '（对不上的只进 DSH，不发手机）' : ''))
 				: null
 
+			// OneBot 11 原生直连配置（全自动感应连接）
+			const ob = cfg.onebot || { enabled: true, httpUrl: 'http://127.0.0.1:3000', accessToken: '' }
+			const setOb = (next) => patch({ onebot: { ...ob, ...next } })
+
+			const [probeState, setProbeState] = React.useState({ testing: false, msg: '' })
+			const [inspectState, setInspectState] = React.useState({ loading: false, data: null, error: null })
+			const [customPath, setCustomPath] = React.useState('')
+			const [enableState, setEnableState] = React.useState({ working: false, msg: '' })
+			const [showAdvanced, setShowAdvanced] = React.useState(false)
+
+			const doInspect = React.useCallback(async (pathOverride) => {
+				setInspectState((s) => ({ ...s, loading: true }))
+				try {
+					const res = await rpc('onebot.inspect', {
+						httpUrl: ob.httpUrl,
+						accessToken: ob.accessToken,
+						customPath: pathOverride !== undefined ? pathOverride : customPath
+					})
+					setInspectState({ loading: false, data: res, error: null })
+				} catch (e) {
+					setInspectState({ loading: false, data: null, error: e?.message || String(e) })
+				}
+			}, [ob.httpUrl, ob.accessToken, customPath])
+
+			// 自动感应并自动连接 NapCat
+			React.useEffect(() => {
+				if (ob.enabled !== false) {
+					rpc('onebot.autoConfig', { customPath }).then((res) => {
+						if (res?.ok && res.httpUrl) {
+							// 若尚未配置、填了错的端口（如 6099）、或检测到实际端口不一致，自动更正并保存
+							if (!ob.httpUrl || /:6099\b/.test(ob.httpUrl) || (res.running && ob.httpUrl !== res.httpUrl)) {
+								setOb({ httpUrl: res.httpUrl, accessToken: res.accessToken || '' })
+							}
+						}
+						doInspect()
+					}).catch(() => {
+						doInspect()
+					})
+				}
+			}, [ob.enabled])
+
+			const testOneBot = async () => {
+				setProbeState({ testing: true, msg: '正在测试连接…' })
+				try {
+					const res = await rpc('onebot.probe', { httpUrl: ob.httpUrl, accessToken: ob.accessToken })
+					if (res?.ok) {
+						const v = res.versionInfo || {}
+						setProbeState({ testing: false, msg: `✅ 连接正常 (${v.app_name || 'OneBot'} ${v.app_version || ''})` })
+					} else {
+						setProbeState({ testing: false, msg: `❌ 连接失败：${res?.error || '无法访问'}` })
+					}
+					doInspect()
+				} catch (e) {
+					setProbeState({ testing: false, msg: `测试异常：${e?.message || e}` })
+				}
+			}
+
+			const doEnableHttp = async () => {
+				setEnableState({ working: true, msg: '正在为 NapCat 写入 HTTP 配置…' })
+				try {
+					const targetDir = inspectState.data?.napcatDir || customPath
+					const res = await rpc('onebot.enableHttp', {
+						customPath: targetDir,
+						port: 3000,
+						accessToken: ob.accessToken
+					})
+					if (res?.ok) {
+						setEnableState({ working: false, msg: res.message || '配置已成功写入！请重启 NapCat 生效。' })
+						if (res.httpUrl) {
+							setOb({ httpUrl: res.httpUrl, accessToken: res.accessToken || '' })
+						}
+						await doInspect()
+					} else {
+						setEnableState({ working: false, msg: `配置写入失败：${res?.error || '未知错误'}` })
+					}
+				} catch (e) {
+					setEnableState({ working: false, msg: `执行异常：${e?.message || e}` })
+				}
+			}
+
+			// NapCat 状态卡片渲染
+			const renderNapCatStatusCard = () => {
+				if (inspectState.loading) {
+					return h('div', { style: hintStyle }, '正在自动检测本地 NapCat 状态…')
+				}
+				const d = inspectState.data
+				if (!d) return null
+
+				if (d.status === 'running') {
+					const v = d.versionInfo || {}
+					return h('div', { style: { padding: '8px 10px', background: 'rgba(63,185,80,0.1)', border: '1px solid #3fb95044', borderRadius: 6, fontSize: 12, margin: '6px 0' } },
+						h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 6 } },
+							h('div', null,
+								h('span', { style: { color: '#3fb950', fontWeight: 600 } }, '🟢 NapCat OneBot 11 服务已自动连接：'),
+								h('span', { style: { marginLeft: 4, color: 'var(--dsw-alias-label-primary)' } }, `${v.app_name || 'NapCat'} ${v.app_version || ''} (${d.httpUrl})`)
+							),
+							h('div', { style: { display: 'flex', alignItems: 'center', gap: 6 } },
+								h('button', {
+									style: { ...buttonStyle, height: 24, padding: '0 10px', fontSize: 11, background: '#238636' },
+									disabled: probeState.testing,
+									onClick: testOneBot
+								}, probeState.testing ? '测试中…' : '测试连接')
+							)
+						),
+						probeState.msg ? h('div', { style: { marginTop: 4, fontSize: 11, color: (probeState.msg.includes('正常') || probeState.msg.includes('成功')) ? '#3fb950' : '#e5534b' } }, probeState.msg) : null
+					)
+				}
+
+				if (d.status === 'not_configured') {
+					return h('div', { style: { padding: '8px 10px', background: 'rgba(235,170,0,0.1)', border: '1px solid rgba(235,170,0,0.3)', borderRadius: 6, fontSize: 12, margin: '6px 0' } },
+						h('div', { style: { color: '#e3b341', fontWeight: 600, marginBottom: 4 } }, '🟡 检测到 NapCat 已安装，但尚未开启 HTTP 3000 服务'),
+						h('div', { style: { color: 'var(--dsw-alias-label-secondary)', marginBottom: 8 } }, `安装目录：${d.napcatDir || '本地 NapCat'}`),
+						h('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+							h('button', {
+								style: { ...buttonStyle, height: 26, padding: '0 12px', fontSize: 12, background: '#339CFF' },
+								disabled: enableState.working,
+								onClick: doEnableHttp
+							}, enableState.working ? '正在配置…' : '⚡ 一键开启 NapCat HTTP 服务 (3000)'),
+							h('button', {
+								style: { ...buttonGhost, height: 26, padding: '0 10px', fontSize: 12 },
+								onClick: () => doInspect()
+							}, '刷新检测')
+						),
+						enableState.msg ? h('div', { style: { marginTop: 6, color: enableState.msg.includes('失败') ? '#e5534b' : '#3fb950' } }, enableState.msg) : null
+					)
+				}
+
+				if (d.status === 'configured_need_restart') {
+					return h('div', { style: { padding: '8px 10px', background: 'rgba(235,170,0,0.1)', border: '1px solid rgba(235,170,0,0.3)', borderRadius: 6, fontSize: 12, margin: '6px 0' } },
+						h('div', { style: { color: '#e3b341', fontWeight: 600, marginBottom: 4 } }, '🟠 OneBot HTTP 3000 服务已写入配置，等待生效'),
+						h('div', { style: { color: 'var(--dsw-alias-label-secondary)', marginBottom: 8 } }, 'NapCat 配置文件中已写入 HTTP 服务，但端口尚未响应。请启动或重启 NapCat 客户端以生效。'),
+						h('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+							h('button', {
+								style: { ...buttonStyle, height: 26, padding: '0 12px', fontSize: 12 },
+								onClick: () => doInspect()
+							}, '重启后重新检测')
+						)
+					)
+				}
+
+				// not_found 或 no_config：提供手动指定路径
+				return h('div', { style: { padding: '6px 8px', background: 'var(--dsw-alias-bg-l2)', borderRadius: 6, fontSize: 12, margin: '6px 0' } },
+					h('div', { style: { color: 'var(--dsw-alias-label-tertiary)', marginBottom: 6 } }, '未在常见目录扫描到 NapCat，可输入 NapCat 根目录手动检测：'),
+					h('div', { style: { display: 'flex', alignItems: 'center', gap: 6 } },
+						h('input', {
+							style: { ...inputStyle, width: 200, height: 26 },
+							value: customPath,
+							placeholder: '例如 D:\\NapCat.Shell',
+							onChange: (e) => setCustomPath(e.target.value)
+						}),
+						h('button', {
+							style: { ...buttonStyle, height: 26, padding: '0 10px', fontSize: 12 },
+							onClick: () => doInspect(customPath)
+						}, '扫描检测')
+					)
+				)
+			}
+
+			const oneBotSection = h('div', { style: { marginTop: 10, padding: '8px 10px', background: 'var(--dsw-alias-bg-l1)', borderRadius: 6 } },
+				h(Row, {
+					label: 'OneBot 直连',
+					control: h('input', {
+						type: 'checkbox',
+						checked: ob.enabled !== false,
+						onChange: (e) => setOb({ enabled: e.target.checked })
+					}),
+					note: '自动连接本机 NapCat OneBot 11 接口推送到 QQ，会话退役或离线也能秒发'
+				}),
+				ob.enabled !== false ? h('div', { style: { marginTop: 6 } },
+					renderNapCatStatusCard(),
+					h('div', { style: { marginTop: 4 } },
+						h('a', {
+							style: { fontSize: 11, color: 'var(--dsw-alias-label-tertiary)', cursor: 'pointer', textDecoration: 'underline' },
+							onClick: () => setShowAdvanced(!showAdvanced)
+						}, showAdvanced ? '收起自定义地址与令牌' : '⚙️ 自定义接口地址与令牌（高级）'),
+						showAdvanced ? h('div', { style: { marginTop: 6, padding: '6px 8px', background: 'var(--dsw-alias-bg-l2)', borderRadius: 6 } },
+							h(Row, {
+								label: 'HTTP 地址',
+								control: h('input', {
+									style: { ...inputStyle, width: 220 },
+									value: ob.httpUrl || '',
+									placeholder: 'http://127.0.0.1:3000',
+									onChange: (e) => setOb({ httpUrl: e.target.value })
+								}),
+								note: '默认为 http://127.0.0.1:3000（由插件自动侦测）'
+							}),
+							h(Row, {
+								label: '访问令牌',
+								control: h('input', {
+									style: { ...inputStyle, width: 220 },
+									type: 'password',
+									value: ob.accessToken || '',
+									placeholder: '未配置可留空',
+									onChange: (e) => setOb({ accessToken: e.target.value })
+								}),
+								note: 'OneBot access_token（若开启了鉴权则填）'
+							})
+						) : null
+					)
+				) : null
+			)
+
 			return h('div', null,
 				h(Row, { label: '同步到手机', control: modeSelect, note: note }),
 				chatSelect ? h(Row, { label: '同步到', control: chatSelect }) : null,
-				followNote)
+				followNote,
+				oneBotSection)
 		}
 
 		function TargetBox(props) {

@@ -52,6 +52,8 @@ DSH 原生全能插件：集「自主资讯全网检索与多端推送」与「�
   零新增第三方 npm 依赖，Windows 走原生 WinRT Toast / 气泡通知，macOS 走 `osascript`，Linux 走 `notify-send`。
 - **会话标题智能识别**：
   深度读取宿主持久化会话索引，通知标题直观展示具体会话名称，告别生硬的内部 UUID。
+- **OneBot 11 原生直连出站与 NapCat 一键适配**：
+  支持直接通过标准 OneBot 11 HTTP 接口将资讯秒级直推到 QQ（私聊/群聊），彻底免受 DSH 会话休眠（retired）或离线阻断；内置 NapCat 本地环境智能检测与 **一键开启 HTTP 3000 服务** 能力，小白用户点选即可完成全部依赖配置。
 
 ---
 
@@ -73,7 +75,7 @@ DSH 原生全能插件：集「自主资讯全网检索与多端推送」与「�
 ### 方式二：手动 / 本地源码安装
 1. 将本插件代码克隆至本地目录，例如：
    ```bash
-   git clone https://github.com/Echo-Cry/dsh-away-notify.git ~/.dsh/intel-pulse
+   git clone https://github.com/Echo-Cry/dsh-intel-pulse.git ~/.dsh/intel-pulse
    ```
    *(Windows 用户对应路径通常为 `%USERPROFILE%\.dsh\intel-pulse`)*
 

@@ -1,17 +1,17 @@
 {
   "name": "dsh-intel-pulse",
-  "version": "0.8.7",
+  "version": "0.8.8",
   "type": "module",
   "description": "自主搜索指定的网络资讯推送，推送到会话或 IM；全局会话状态系统弹窗通知",
   "author": "Echo-Cry <kcrystal360049@gmail.com>",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Echo-Cry/dsh-away-notify.git"
+    "url": "https://github.com/Echo-Cry/dsh-intel-pulse.git"
   },
-  "homepage": "https://github.com/Echo-Cry/dsh-away-notify#readme",
+  "homepage": "https://github.com/Echo-Cry/dsh-intel-pulse#readme",
   "bugs": {
-    "url": "https://github.com/Echo-Cry/dsh-away-notify/issues"
+    "url": "https://github.com/Echo-Cry/dsh-intel-pulse/issues"
   },
   "keywords": [
     "dsh",

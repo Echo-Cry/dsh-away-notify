@@ -660,12 +660,32 @@ window.__ModuleLoader__.load({
 
 		function TargetBox(props) {
 			const { cfg, patch } = props
+			const inboxOnly = Boolean(cfg.inboxOnly)
+
 			return h('div', null,
-				h(SessionPicker, { cfg, patch }),
-				h(Divider, null),
-				h(PhoneSync, { cfg, patch }),
-				h(Divider, null),
-				h('div', { style: hintStyle }, '推送会以「助手消息」的形式直接写进会话，不会触发模型回答、不消耗 token；会话正在跑别的轮次时这条留到下次。'))
+				h('div', { style: { padding: '8px 12px', background: inboxOnly ? 'rgba(51, 156, 255, 0.12)' : 'var(--dsw-alias-bg-l2)', borderRadius: 8, border: '1px solid ' + (inboxOnly ? 'rgba(51, 156, 255, 0.35)' : 'var(--dsw-alias-border-l2)'), marginBottom: 12 } },
+					h('label', { style: { display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontWeight: 600, fontSize: 13, color: 'var(--dsw-alias-label-primary)' } },
+						h('input', {
+							type: 'checkbox',
+							checked: inboxOnly,
+							onChange: (e) => patch({ inboxOnly: e.target.checked })
+						}),
+						'仅收录到「资讯收件箱」（不向任何会话或 IM 投递，无需选择会话）'
+					),
+					h('div', { style: { ...hintStyle, marginLeft: 22, marginTop: 4 } },
+						inboxOnly
+							? '已开启独立收件箱模式：采集到的资讯会直接排开陈列在侧栏「资讯收件箱」面板中，不向任何会话写消息、不发 QQ/手机，静默收录。'
+							: '未开启：资讯将按下方配置正常投递至选中的会话及手机/QQ。'
+					)
+				),
+				inboxOnly ? null : h('div', null,
+					h(SessionPicker, { cfg, patch }),
+					h(Divider, null),
+					h(PhoneSync, { cfg, patch }),
+					h(Divider, null),
+					h('div', { style: hintStyle }, '推送会以「助手消息」的形式直接写进会话，不会触发模型回答、不消耗 token；会话正在跑别的轮次时这条留到下次。')
+				)
+			)
 		}
 
 		// ── 细线分隔：一张卡片里几个逻辑块之间留白，避免上一块的备注紧贴下一块标题 ──
@@ -1272,6 +1292,180 @@ window.__ModuleLoader__.load({
 				h(Section, { title: '账单' }, h(BillBox, null)))
 		}
 
+		// ── 侧栏「资讯收件箱」面板 ─────────────────────────────────────
+		const INBOX_PANEL_ID = 'dsh-intel-pulse-inbox'
+
+		function PulseSidebarIcon(props) {
+			const size = props?.size || 16
+			return h('svg', {
+				width: size,
+				height: size,
+				viewBox: '0 0 16 16',
+				fill: 'none',
+				stroke: 'currentColor',
+				strokeWidth: 1.25,
+				strokeLinecap: 'round',
+				strokeLinejoin: 'round',
+				style: { display: 'block', flex: 'none' }
+			},
+			// 天线/雷达波脉冲图标
+			h('path', { d: 'M1.5 6.5a6.5 6.5 0 0 1 13 0' }),
+			h('path', { d: 'M3.8 8.8a3.5 3.5 0 0 1 8.4 0' }),
+			h('circle', { cx: 8, cy: 11, r: 1.25, fill: 'currentColor' }))
+		}
+
+		function PulseInboxPage() {
+			const [limit, setLimit] = React.useState(30)
+			const [reload, setReload] = React.useState(0)
+			const [selectedItem, setSelectedItem] = React.useState(null)
+			const runsAsync = useAsync(() => rpc('bill.runs', { limit }), [limit, reload])
+
+			const runs = Array.isArray(runsAsync.value) ? runsAsync.value : []
+
+			return h('div', {
+				style: {
+					height: '100%',
+					minHeight: 0,
+					overflowY: 'auto',
+					boxSizing: 'border-box',
+					padding: '24px clamp(16px, 4vw, 48px) 36px',
+					color: 'var(--dsw-alias-label-primary, #1f2329)',
+					background: 'var(--dsw-alias-bg-canvas, transparent)'
+				}
+			},
+			h('div', { style: { maxWidth: 960, margin: '0 auto' } },
+				// 头部
+				h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, borderBottom: '1px solid var(--dsw-alias-border-l2)', paddingBottom: 14 } },
+					h('div', null,
+						h('h2', { style: { fontSize: 18, fontWeight: 600, margin: 0, display: 'flex', alignItems: 'center', gap: 8 } },
+							h(PulseSidebarIcon, { size: 20 }),
+							'资讯收件箱'
+						),
+						h('div', { style: { fontSize: 12, color: 'var(--dsw-alias-label-tertiary)', marginTop: 4 } },
+							'按时间汇总的主动采集资讯流，支持翻阅历史推送与点击原文溯源'
+						)
+					),
+					h('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+						h('button', {
+							style: { ...buttonGhost, height: 28, padding: '0 12px', fontSize: 12 },
+							onClick: () => setReload(n => n + 1)
+						}, '刷新'),
+						h('button', {
+							style: { ...buttonStyle, height: 28, padding: '0 12px', fontSize: 12 },
+							onClick: () => rpc('run.test').then(() => setReload(n => n + 1)).catch(() => {})
+						}, '⚡ 立即采集一轮')
+					)
+				),
+
+				// 内容列表
+				runsAsync.loading && runs.length === 0
+					? h('div', { style: { ...hintStyle, textAlign: 'center', padding: '40px 0' } }, '正在读取资讯流…')
+					: runs.length === 0
+						? h('div', { style: { textAlign: 'center', padding: '60px 0', color: 'var(--dsw-alias-label-tertiary)' } },
+							h('div', { style: { fontSize: 32, marginBottom: 8 } }, '📭'),
+							h('div', { style: { fontSize: 14, fontWeight: 500 } }, '暂无收录的资讯记录'),
+							h('div', { style: { fontSize: 12, marginTop: 4 } }, '插件在闲置探测触发或定时触发后，采集到的资讯将在此陈列。')
+						)
+						: h('div', { style: { display: 'flex', flexDirection: 'column', gap: 16 } },
+							runs.map((r, runIdx) => {
+								const entries = Array.isArray(r.entries) ? r.entries : []
+								const timeStr = fmtStamp(r.at)
+								const methodLabel = METHOD_LABEL[r.method] || r.method || '采集'
+								const isInboxOnly = r.targetId === 'inbox' || (Array.isArray(r.delivered) && r.delivered.some(d => d.id === 'inbox'))
+
+								return h('div', {
+									key: r.id || runIdx,
+									style: {
+										background: 'var(--dsw-alias-bg-l2, rgba(255,255,255,0.04))',
+										border: '1px solid var(--dsw-alias-border-l2)',
+										borderRadius: 10,
+										padding: '14px 18px',
+										boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+									}
+								},
+								// 单次运行卡片头部元信息
+								h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 6 } },
+									h('div', { style: { display: 'flex', alignItems: 'center', gap: 8 } },
+										h('span', { style: { fontSize: 12, fontWeight: 600, color: 'var(--dsw-alias-label-primary)' } }, timeStr),
+										h('span', {
+											style: {
+												fontSize: 11,
+												padding: '2px 8px',
+												borderRadius: 999,
+												background: 'var(--dsw-alias-interactive-bg-hover, rgba(255,255,255,0.08))',
+												color: 'var(--dsw-alias-label-secondary)'
+											}
+										}, methodLabel),
+										r.test ? h('span', { style: { fontSize: 11, padding: '2px 6px', borderRadius: 4, background: 'rgba(51, 156, 255, 0.15)', color: '#339CFF' } }, '试跑') : null,
+										isInboxOnly ? h('span', { style: { fontSize: 11, padding: '2px 6px', borderRadius: 4, background: 'rgba(63, 185, 80, 0.15)', color: '#3fb950' } }, '独立收件箱') : null
+									),
+									h('div', { style: { fontSize: 11, color: 'var(--dsw-alias-label-tertiary)' } },
+										entries.length > 0 ? `共 ${entries.length} 条资讯` : '无聚合条目'
+									)
+								),
+
+								// 聚合条目网格/列表
+								entries.length > 0
+									? h('div', { style: { display: 'flex', flexDirection: 'column', gap: 10 } },
+										entries.map((entry, eIdx) => {
+											return h('div', {
+												key: eIdx,
+												style: {
+													padding: '10px 14px',
+													background: 'var(--dsw-alias-bg-l1, rgba(255,255,255,0.02))',
+													border: '1px solid var(--dsw-alias-border-l1, rgba(255,255,255,0.06))',
+													borderRadius: 8,
+													display: 'flex',
+													flexDirection: 'column',
+													gap: 4
+												}
+											},
+											h('div', { style: { display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 } },
+												h('div', { style: { fontSize: 13, fontWeight: 600, color: 'var(--dsw-alias-label-primary)', lineHeight: 1.4 } },
+													entry.title || '未命名资讯'
+												),
+												entry.url ? h('a', {
+													href: entry.url,
+													target: '_blank',
+													rel: 'noopener noreferrer',
+													style: {
+														fontSize: 11,
+														color: '#339CFF',
+														textDecoration: 'none',
+														display: 'flex',
+														alignItems: 'center',
+														gap: 3,
+														flex: 'none',
+														padding: '2px 8px',
+														borderRadius: 4,
+														background: 'rgba(51, 156, 255, 0.1)'
+													}
+												}, '🔗 原文') : null
+											),
+											entry.summary ? h('div', { style: { fontSize: 12, color: 'var(--dsw-alias-label-secondary)', lineHeight: 1.5, marginTop: 2 } },
+												entry.summary
+											) : null,
+											entry.source ? h('div', { style: { fontSize: 10, color: 'var(--dsw-alias-label-tertiary)', marginTop: 2 } },
+												`来源：${entry.source}`
+											) : null)
+										})
+									)
+									// 无 entries 时展示投递文本
+									: (r.text ? h('div', { style: { fontSize: 12, color: 'var(--dsw-alias-label-secondary)', whiteSpace: 'pre-wrap', lineHeight: 1.5 } }, r.text) : null)
+								)
+							}),
+
+							// 往回翻页 / 加载更多
+							h('div', { style: { textAlign: 'center', marginTop: 12 } },
+								h('button', {
+									style: { ...buttonGhost, height: 32, padding: '0 20px', fontSize: 12 },
+									onClick: () => setLimit(l => l + 30)
+								}, '加载更多历史推送…')
+							)
+						)
+			))
+		}
+
 		let rpc = null
 
 		function apply(ctx) {
@@ -1290,6 +1484,7 @@ window.__ModuleLoader__.load({
 				return result.value
 			}
 
+			// 注册设置页
 			try {
 				ctx.slots.inject('settings.section', function* () {
 					yield ctx.slots.register(
@@ -1299,10 +1494,42 @@ window.__ModuleLoader__.load({
 			} catch (e) {
 				console.warn('[dsh-intel-pulse] settings.section slot unavailable', e)
 			}
+
+			// 注册侧栏独立「资讯收件箱」面板
+			try {
+				if (typeof ctx.inject === 'function') {
+					ctx.inject(['layout'], (pageCtx) => {
+						try {
+							// 注册主工作区视图
+							pageCtx.slots.inject('main', () => {
+								return pageCtx.slots.register({
+									name: 'main',
+									key: INBOX_PANEL_ID,
+									inject: () => ({})
+								}, PulseInboxPage)
+							})
+
+							// 注册左侧栏图标入口
+							pageCtx.slots.inject('sidebar.panellist', () => {
+								return pageCtx.slots.register({
+									name: 'sidebar.panellist',
+									id: INBOX_PANEL_ID,
+									order: 12,
+									label: () => '资讯收件箱'
+								}, PulseSidebarIcon)
+							})
+						} catch (err) {
+							console.warn('[dsh-intel-pulse] Failed to register inbox layout slots', err)
+						}
+					})
+				}
+			} catch (e) {
+				console.warn('[dsh-intel-pulse] layout service inject unavailable', e)
+			}
 		}
 
-		// settingsScope 故意不声明：DSH 0.1.7 起该客户端服务不再存在。
-		exports.inject = ['slots', 'sessions']
+		// 声明依赖的客户端服务：加入 layout 以便挂载侧栏面板
+		exports.inject = ['slots', 'sessions', 'layout']
 		exports.apply = apply
 		return module.exports
 	}
